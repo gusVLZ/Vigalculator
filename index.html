@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIGALCULATOR</title>
+</head>
+
+<body>
+    <div class="modal active" id="modalFormAddViga" onsubmit="addViga(event)">
+        <span>
+            <h2 style="margin-block-start: 0;">Adicionar viga</h2>
+        </span>
+        <form>
+            <label for="largViga">Largura da viga:</label>
+            <input name="largViga" type="number">
+            <input type="submit" value="Adicionar">
+        </form>
+    </div>
+    <div class="modal" id="modalFormAddApoio" onsubmit="addApoio(event)">
+        <span>
+            <button class="close" onclick="hideModal('modalFormAddApoio')">X</button>
+            <h2 style="margin-block-start: 0;">Adicionar apoio</h2>
+        </span>
+        <form>
+            <label for="apoioType"></label>
+            <select name="apoioType" id="apoioType">
+                <option value="rolete">Rolete</option>
+                <option value="pino">Pino</option>
+            </select>
+            <label for="posicaoApoio"></label>
+            <input name="posicaoApoio" type="number">
+            <input type="submit" value="Adicionar">
+        </form>
+    </div>
+    <div class="modal" id="modalFormAddForca" onsubmit="addForca(event)">
+        <span>
+            <button class="close" onclick="hideModal('modalFormAddForca')">X</button>
+            <h2 style="margin-block-start: 0;">Adicionar força</h2>
+        </span>
+
+        <form>
+            <label for="forcaType">Tipo de força</label>
+            <select name="forcaType" id="forcaType" onchange="toggleEnd(event)">
+                <option value="distribuida">Distribuida</option>
+                <option value="pontual">Pontual</option>
+                <option value="momento">Momento</option>
+            </select>
+            <label for="posicaoForca">Posição</label>
+            <input name="posicaoForca" type="number">
+            <label for="quantForca">Valor</label>
+            <input name="quantForca" type="number">
+
+            <span id="wrapperForcaDist">
+                <label for="posicaoForcaFim">Posição Final</label>
+                <input name="posicaoForcaFim" type="number">
+                <label for="quantForcaFim">Valor Final</label>
+                <input name="quantForcaFim" type="number">
+            </span>
+
+            <input type="submit" value="Adicionar">
+        </form>
+    </div>
+
+    <div class="aside">
+        <h1>Elementos</h1>
+        <button style="margin: 0.4em;" onclick="showModal('modalFormAddApoio')">+ Apoio</button>
+        <button onclick="showModal('modalFormAddForca')">+ Força</button>
+        <span id="cards">
+        </span>
+    </div>
+    <div class="content">
+        <h1>Simulação e cálculos</h1>
+        <canvas id="canvas">
+        </canvas>
+        <h5 id="resp1"></h5>
+        <h3 id="resp2"></h3>
+    </div>
+</body>
+
+<style>
+    * {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #222;
+        transition: 0.5s;
+    }
+
+    html {
+        padding: 0;
+        margin: 0;
+    }
+
+    body {
+        padding: 0;
+        margin: 0;
+        display: flex;
+        overflow-y: hidden;
+    }
+
+    .aside {
+        padding: 0.4em;
+        width: 26vw;
+        height: 100vh;
+        overflow-y: auto;
+        background-color: #ddd;
+    }
+
+    .aside h1 {
+        text-align: center;
+    }
+
+    .aside>button {
+        width: 46%;
+    }
+
+    .content {
+        width: 74vw;
+        height: 100vh;
+        background-color: #fff;
+        padding-left: 5vw;
+        overflow-y: auto;
+    }
+
+    .modal {
+        position: fixed;
+        left: 50%;
+        top: -200%;
+        opacity: 0;
+        transform: translate(-50%, -50%);
+        border-radius: 1em;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        box-shadow: 0px 5px 15px 5px rgba(10, 10, 10, 0.3);
+        padding: 2em;
+        padding-left: 4em;
+        padding-right: 4em;
+        background-color: #eee;
+        height: 0;
+    }
+
+    .active {
+        display: flex;
+        height: auto;
+        top: 50%;
+        opacity: 1;
+    }
+
+    #wrapperForcaDist {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    form {
+        min-width: 30vw;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    form label {
+        font-size: 14pt;
+        font-weight: 500;
+    }
+
+    form input,
+    form select {
+        margin-bottom: 0.5em;
+        padding: 0.5em;
+        border-radius: 3px;
+        font-size: 14pt;
+        border: solid 1px #ccc;
+    }
+
+    input[type="button"],
+    input[type="submit"],
+    button {
+        transition: 0.3s;
+        background-color: #1976d2;
+        padding: 0.7em;
+        border-radius: 3px;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 600;
+        border: none;
+    }
+
+    input[type="button"]:hover,
+    input[type="submit"]:hover,
+    button:hover {
+        transform: scale(1.03);
+        background-color: #004ba0;
+        box-shadow: 0px 5px 15px 5px rgba(10, 10, 10, 0.3);
+    }
+
+    .infoCard {
+        border-radius: 5px;
+        background-color: #fff;
+        padding: 1em;
+        margin-bottom: 0.4em;
+        border: solid 1px #ccc
+    }
+
+    .infoCard h1 {
+        margin: 0;
+        text-align: left;
+        font-size: 16pt;
+    }
+
+    .close {
+        width: 2em;
+        height: 2em;
+        line-height: 0.5em;
+        position: relative;
+        float: right;
+        background-color: #d32f2f;
+    }
+
+    .close:hover {
+        background-color: #9a0007;
+    }
+
+    .content canvas {
+        border-radius: 3px;
+        width: 66vw;
+        height: 30vw;
+        border: solid 2px #ccc
+    }
+</style>
+
+<script>
+    var largViga = 0;
+
+    var forcas = [];
+
+    var apoios = [];
+
+    var canvas = document.getElementById("canvas")
+
+    window.addEventListener('resize', function () {
+        window.setTimeout(reDraw, 500)
+    });
+
+    function reDraw() {
+        var w = canvas.getBoundingClientRect().width;
+        var h = canvas.getBoundingClientRect().height;
+        canvas.width = canvas.getBoundingClientRect().width;
+        canvas.height = canvas.getBoundingClientRect().height;
+
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#001970";
+        ctx.fillRect(Math.round(w / 10), Math.round(h / 2 - 15), Math.round(w / 10 * 8), 30);
+
+        var startViga = Math.round(w / 10)
+        var widthViga = Math.round(w / 10 * 8)
+
+        ctx.fillStyle = "#9a0007"
+        ctx.strokeStyle = "#9a0007"
+        forcas.forEach(function (f) {
+            var x = startViga + (f.x / largViga * widthViga)
+            var y = Math.round(h / 2 - 15)
+
+            ctx.font = "16px Verdana";
+
+            if (f.type == "pontual") {
+                ctx.fillText(f.val + "N", x - 10, y - 70);
+                canvas_arrow(ctx, x, y - 50, x, y)
+            }
+            else if (f.type == "distribuida") {
+                var maxF = Math.abs(f.val) > Math.abs(f.valEnd) ? Math.abs(f.val) : Math.abs(f.valEnd)
+
+                var yStart = 50 * (f.val / maxF)
+                var yEnd = 50 * (f.valEnd / maxF)
+
+                var xEnd = startViga + (f.xEnd / largViga * widthViga)
+
+
+                var length = xEnd - x
+                var i = 0
+                var count = length / 20
+                var delta = yStart - yEnd
+                while (i < length) {
+                    canvas_arrow(ctx, x + i, y - 50 + (delta / count * (i / 20)), x + i, y)
+                    i += 20;
+                }
+                canvas_arrow(ctx, xEnd, y - 50 + (delta / count * (i / 20)), xEnd, y)
+                ctx.fillText(f.val + "N/m", x - 10, y - 70);
+                ctx.fillText(f.valEnd + "N/m", xEnd - 10, y - 70 + (delta / count * (i / 20)));
+                ctx.beginPath()
+                ctx.moveTo(x, y - 50)
+                ctx.lineTo(xEnd, y - 50 + (delta / count * (i / 20)))
+                ctx.closePath();
+                ctx.stroke()
+            } else {
+                ctx.fillText(f.val + "N.m", x - 10, y - 70);
+                ctx.beginPath();
+                ctx.arc(x, y + 15, 40, 1.3 * Math.PI, 2.6 * Math.PI);
+                ctx.stroke()
+                ctx.beginPath()
+                ctx.moveTo(x, y + 15)
+                ctx.lineTo(x + 32, y - 10)
+                ctx.stroke()
+                ctx.closePath();
+                canvas_arrow(ctx, x - 12, y + 53, x - 26, y + 46)
+            }
+        })
+
+        ctx.fillStyle = "#333"
+        apoios.forEach(function (ap) {
+            var x = startViga + (ap.x / largViga * widthViga)
+            var y = Math.round(h / 2 + 15)
+            if (ap.type == "rolete") {
+                ctx.beginPath();
+                ctx.arc(x, y + 10, 10, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 10, y + 20);
+                ctx.lineTo(x - 10, y + 20);
+                ctx.closePath();
+                ctx.fill()
+            }
+        })
+    }
+
+    function canvas_arrow(context, fromx, fromy, tox, toy) {
+        var headlen = 10; // length of head in pixels
+        var dx = tox - fromx;
+        var dy = toy - fromy;
+        var angle = Math.atan2(dy, dx);
+        context.lineWidth = 3
+        context.beginPath();
+        context.moveTo(fromx, fromy);
+        context.lineTo(tox, toy);
+        context.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+        context.moveTo(tox, toy);
+        context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+        context.closePath();
+        context.stroke()
+    }
+
+    function showModal(idModal) {
+        var element = document.getElementById(idModal);
+        element.classList.add("active")
+    }
+    function hideModal(idModal) {
+        var element = document.getElementById(idModal);
+        element.classList.remove("active");
+    }
+
+    function addViga(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const data = {};
+        formData.forEach((value, key) => (data[key] = value));
+        largViga = +data.largViga
+
+        event.target.reset();
+
+        reDraw();
+        fillHtml();
+        hideModal('modalFormAddViga')
+    }
+
+    function addApoio(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const data = {};
+        formData.forEach((value, key) => (data[key] = value));
+
+        apoios.push({
+            id: (Math.random() + 1).toString(36).substring(2),
+            x: +data.posicaoApoio,
+            type: data.apoioType
+        })
+
+        event.target.reset();
+
+        reDraw();
+        fillHtml();
+        hideModal('modalFormAddApoio');
+    }
+
+    function addForca(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const data = {};
+        formData.forEach((value, key) => (data[key] = value));
+
+        forcas.push({
+            id: (Math.random() + 1).toString(36).substring(2),
+            x: +data.posicaoForca,
+            xEnd: +data.posicaoForcaFim,
+            val: +data.quantForca,
+            valEnd: +data.quantForcaFim,
+            type: data.forcaType
+        })
+
+        event.target.reset();
+        document.getElementById("wrapperForcaDist").style = "display: flex"
+
+        reDraw();
+        fillHtml();
+        hideModal('modalFormAddForca');
+    }
+
+    function removeElemento(id) {
+        let index = apoios.map(x => x.id).indexOf(id);
+        if (index > -1) {
+            apoios.splice(index, 1);
+        }
+
+        index = forcas.map(x => x.id).indexOf(id);
+        if (index > -1) {
+            forcas.splice(index, 1);
+        }
+
+        reDraw();
+        fillHtml();
+    }
+
+    function fillHtml() {
+        let wrapper = document.getElementById("cards");
+        wrapper.innerHTML = ""
+
+        wrapper.innerHTML += `
+                <div class="infoCard">
+                    <h1>Largura da viga: ${largViga}</h1>
+                </div>
+                `
+
+        apoios.forEach(x => {
+            wrapper.innerHTML += `
+                <div class="infoCard">
+                    <button class="close" onclick="removeElemento('${x.id}')">X</button>
+                    <h1>Apoio ${x.type}</h1>
+                    <hr>
+                    <div class="bodyCard">
+                        <strong>Posição:</strong> ${x.x}<br>
+                    </div>
+                </div>
+                `
+        })
+        forcas.forEach(x => {
+            if (x.type == "distribuida") {
+                wrapper.innerHTML += `
+                    <div class="infoCard">
+                        <button class="close" onclick="removeElemento('${x.id}')">X</button>
+                        <h1>Força ${x.type}</h1>
+                        <hr>
+                        <div class="bodyCard">
+                            <strong>Posição:</strong> ${x.x}<br>
+                            <strong>Valor:</strong> ${x.val}<br>
+                            <strong>Posição Final:</strong> ${x.xEnd}<br>
+                            <strong>Valor Final:</strong> ${x.valEnd}<br>
+                        </div>
+                    </div>
+                `
+            } else {
+                wrapper.innerHTML += `
+                    <div class="infoCard">
+                        <button class="close" onclick="removeElemento('${x.id}')">X</button>
+                        <h1>Força ${x.type}</h1>
+                        <hr>
+                        <div class="bodyCard">
+                            <strong>Posição:</strong> ${x.x}<br>
+                            <strong>Valor:</strong> ${x.val}<br>
+                        </div>
+                    </div>
+                    `
+            }
+        })
+
+        calc()
+    }
+
+    function toggleEnd(event) {
+        if (event.target.value == "distribuida") {
+            document.getElementById("wrapperForcaDist").style = "display: flex"
+        } else {
+            document.getElementById("wrapperForcaDist").style = "display: none"
+        }
+    }
+
+    function calc() {
+        var resp1 = document.getElementById('resp1');
+        var resp2 = document.getElementById('resp2');
+
+        var html = ""
+        var htmlSis = "Cálculo de sistema:<br>"
+        var htmlY = "Soma de forças em Y: "
+        var htmlX = "Soma dos momentos em relação ao primeiro apoio: "
+
+
+        if (apoios.length == 2 && forcas.length > 0) {
+            apoios = apoios.sort((a,b)=>(a.x-b.x))
+            var R1 = 0;
+            var R2 = 0;
+            var totalY = 0;
+            var totalMomentoR2 = 0;
+
+            for (const f of forcas) {
+                var forcaY = 0
+                var forcaX = 0
+                var momentoX = 0
+
+                if (f.type == "pontual") {
+                    forcaY = f.val
+                    forcaX = f.x
+                    momentoX = f.val*(f.x-apoios[0].x)
+                }
+
+                if (f.type == "distribuida") {
+                    forcaY = (f.val + f.valEnd) / 2 * (f.xEnd - f.x)
+                    forcaX = f.x + (f.xEnd - f.x) * ((f.val / 3 + 2 * f.valEnd / 3) / (f.val + f.valEnd))
+                    momentoX = forcaY*(forcaX-apoios[0].x)
+
+                    html+=`Cálculo da força distribuída:<br/><br/>
+                    W = (${f.val} + ${f.valEnd}) / 2 * (${f.xEnd} - ${f.x}) = ${forcaY.toFixed(2).toString().replace(".", ",")}<br/>
+                    Wx = ${f.x} + (${f.xEnd} - ${f.x}) * ((${f.val} / 3 + 2 * ${f.valEnd} / 3) / (${f.val} + ${f.valEnd})) = ${forcaX.toFixed(2).toString().replace(".", ",")}<br/><br/>
+                    `
+                }
+
+                if (f.type == "momento") {
+                    forcaY = 0
+                    forcaX = f.x
+                    momentoX = f.val
+                }
+
+                totalY += forcaY
+                htmlY += `+${forcaY.toFixed(2).toString().replace(".", ",")}`
+                htmlX += `+${momentoX.toFixed(2).toString().replace(".", ",")}`
+                totalMomentoR2 += momentoX
+
+            }
+
+            var sis1 = (apoios[1].x-apoios[0].x)
+            var r1 = (totalY*sis1-totalMomentoR2)/sis1
+            htmlSis += `R1 = (${totalY.toFixed(2).toString().replace(".", ",")}*${sis1.toFixed(2).toString().replace(".", ",")}-${totalMomentoR2.toFixed(2).toString().replace(".", ",")})/${sis1.toFixed(2).toString().replace(".", ",")}<br>`
+            var r2 = totalY-r1
+            htmlSis += `R2 = ${totalY.toFixed(2).toString().replace(".", ",")}-${r1.toFixed(2).toString().replace(".", ",")}<br>`
+            
+
+            resp1.innerHTML = html + "<br><br>"+ htmlY+"<br><br>"+htmlX+"<br><br>"+htmlSis
+            resp2.innerHTML = "A força aplicada sobre o primeiro apoio é de " + r1.toFixed(2).toString().replace(".", ",") + "N enquanto no segundo apoio a força é de " + r2.toFixed(2).toString().replace(".", ",") + "N"
+
+            resp1.innerHTML = resp1.innerHTML.replaceAll("--", "+").replaceAll("+-", "-")
+        } else {
+            resp1.innerHTML = "Insira 2 apoios e forças para simular"
+            resp2.innerHTML = ""
+        }
+    }
+
+</script>
+
+</html>
